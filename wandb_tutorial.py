@@ -233,17 +233,17 @@ class TwoLayerNN:
 def main(args):
     # load json config file
     config = args
-    if config["resume"]:
-        run = wandb.init(project="wandb-tutorial", config=config, resume="must", id=config["run_id"])
-    else:
-        run = wandb.init(project="wandb-tutorial", config=config, notes="Hello, wandb!", tags=["tutorial"])
-        model_output_path = "./training_params/"+run.id
-        if not os.path.exists(model_output_path):
-            os.makedirs(model_output_path)
-        with open(os.path.join(model_output_path, "training_params.json"), 'w') as outfile:
-            json.dump(config, outfile)
+#     if config["resume"]:
+#         run = wandb.init(project="wandb-tutorial", config=config, resume="must", id=config["run_id"])
+#     else:
+#         run = wandb.init(project="wandb-tutorial", config=config, notes="Hello, wandb!", tags=["tutorial"])
+#         model_output_path = "./training_params/"+run.id
+#         if not os.path.exists(model_output_path):
+#             os.makedirs(model_output_path)
+#         with open(os.path.join(model_output_path, "training_params.json"), 'w') as outfile:
+#             json.dump(config, outfile)
 
-    print(run.id)
+#     print(run.id)
     print("config:", config)
     start_time = time.time()
     time_limit = 0.1 # minutes
@@ -271,39 +271,39 @@ def main(args):
     print("batch size: ", batch_size)
 
     for epoch in range(n_epochs):
-        execution_time = (time.time() - start_time) / 60
-        print("execution time:", execution_time)
-        if execution_time > time_limit:
-            print('timeout')
-            break
-        if config["raise_error"] and epoch == 10:
-            raise Exception("unknown error")
+#         execution_time = (time.time() - start_time) / 60
+#         print("execution time:", execution_time)
+#         if execution_time > time_limit:
+#             print('timeout')
+#             break
+#         if config["raise_error"] and epoch == 10:
+#             raise Exception("unknown error")
         train_loss, train_acc, valid_loss, valid_acc = model.train(x_train, y_train, x_valid, y_valid, lr, n_epochs,
                                                                    batch_size)
         # log metric
-        wandb.log({
-            "loss/train_loss": train_loss,
-            "loss/valid_loss": valid_loss,
-            "accuracy/train_accuracy": train_acc,
-            "accuracy/valid_accuracy": valid_acc,
-            "params/epoch": epoch
-        })
+#         wandb.log({
+#             "loss/train_loss": train_loss,
+#             "loss/valid_loss": valid_loss,
+#             "accuracy/train_accuracy": train_acc,
+#             "accuracy/valid_accuracy": valid_acc,
+#             "params/epoch": epoch
+#         })
 
     # evalute the model on test data
     Y_hat, _ = model.forward(x_test)
     test_loss = model.compute_loss(y_test, Y_hat)
     test_acc = model.evaluate(y_test, Y_hat)
     print("Final test loss = {:.3f}, acc = {:.3f}".format(test_loss, test_acc))
-    wandb.log({
-        "loss/test_loss": test_loss,
-        "accuracy/test_accuracy": test_acc
-    })
+#     wandb.log({
+#         "loss/test_loss": test_loss,
+#         "accuracy/test_accuracy": test_acc
+#     })
     threshold = 0.8
     if test_acc < threshold:
-        wandb.alert(
-            title="low test accuracy ",
-            text=f"Accuracy {test_acc} is below the acceptable theshold {threshold}"
-        )
+#         wandb.alert(
+#             title="low test accuracy ",
+#             text=f"Accuracy {test_acc} is below the acceptable theshold {threshold}"
+#         )
 
 
 
