@@ -1,0 +1,15 @@
+program: wandb_tutorial.py
+method: bayes
+metric:
+  name: valid_accuracy
+  goal: minimize
+parameters:
+  lr:
+    distribution: log_uniform
+    min: -9.21
+    max: -6.9078
+  batch_size:
+    distribution: q_uniform
+    min: 64
+    max: 128
+    q: 64

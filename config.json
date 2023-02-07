@@ -1,0 +1,8 @@
+{
+  "lr": 0.1,
+  "n_epochs": 20,
+  "batch_size": 512,
+  "raiseerror": false,
+  "resume": false,
+  "run_id": "nwk3ffa1"
+}
