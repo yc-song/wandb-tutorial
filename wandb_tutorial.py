@@ -7,7 +7,8 @@ from mnist.data_utils import load_data
 import os
 import wandb
 import json
-
+import argparse
+import time
 
 # Utils
 def sigmoid(z):
@@ -229,15 +230,23 @@ class TwoLayerNN:
 
 
 # Load MNIST
-def main():
+def main(args):
     # load json config file
-    with open('./config.json') as f:
-        config = json.load(f)
-    # initialize wandb
+    config = args
     if config["resume"]:
         run = wandb.init(project="wandb-tutorial", config=config, resume="must", id=config["run_id"])
     else:
         run = wandb.init(project="wandb-tutorial", config=config, notes="Hello, wandb!", tags=["tutorial"])
+        model_output_path = "./training_params/"+run.id
+        if not os.path.exists(model_output_path):
+            os.makedirs(model_output_path)
+        with open(os.path.join(model_output_path, "training_params.json"), 'w') as outfile:
+            json.dump(config, outfile)
+
+    print(run.id)
+    print("config:", config)
+    start_time = time.time()
+    time_limit = 0.1 # minutes
     # load and shuffle data
     x_train, y_train, x_test, y_test = load_data()
     idxs = np.arange(len(x_train))
@@ -262,7 +271,12 @@ def main():
     print("batch size: ", batch_size)
 
     for epoch in range(n_epochs):
-        if config["raiseerror"] and epoch == 10:
+        execution_time = (time.time() - start_time) / 60
+        print("execution time:", execution_time)
+        if execution_time > time_limit:
+            print('timeout')
+            break
+        if config["raise_error"] and epoch == 10:
             raise Exception("unknown error")
         train_loss, train_acc, valid_loss, valid_acc = model.train(x_train, y_train, x_valid, y_valid, lr, n_epochs,
                                                                    batch_size)
@@ -292,5 +306,17 @@ def main():
         )
 
 
+
 if __name__ == "__main__":
-    main()
+    with open('./config.json') as f:
+        config = json.load(f)
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--resume", default = config["resume"], action = "store_true", help = "whether to resume")
+    parser.add_argument("--run_id", default = config["run_id"], help = "run id to resume")
+    parser.add_argument("--lr", type = float, default = config["lr"], help = "learning rate")
+    parser.add_argument("--batch_size", type = int, default = config["batch_size"], help = "batch size")
+    parser.add_argument("--raise_error", default = config["raise_error"], help = "batch size")
+    parser.add_argument("--n_epochs", type = int, default = config["n_epochs"], help = "batch size")
+
+    args = vars(parser.parse_args())
+    main(args)
