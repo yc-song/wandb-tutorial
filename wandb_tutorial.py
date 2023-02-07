@@ -31,7 +31,6 @@ def softmax(X):
 def load_batch(X, Y, batch_size, shuffle=True):
     """
     Generates batches with the remainder dropped.
-
     Do NOT modify this function
     """
     if shuffle:
@@ -63,7 +62,6 @@ class TwoLayerNN:
     def initialize_parameters(self, input_dim, num_hiddens, num_classes):
         """
         initializes parameters with Xavier Initialization.
-
         Question (a)
         - refer to https://paperswithcode.com/method/xavier-initialization for Xavier initialization 
         
@@ -85,19 +83,14 @@ class TwoLayerNN:
         """
         Define and perform the feed forward step of a two-layer neural network.
         Specifically, the network structue is given by
-
           y = softmax(sigmoid(X W1 + b1) W2 + b2)
-
         where X is the input matrix of shape (N, D), y is the class distribution matrix
         of shape (N, C), N is the number of examples (either the entire dataset or
         a mini-batch), D is the feature dimensionality, and C is the number of classes.
-
         Question (b)
         - ff_dict will be used to run backpropagation in backward method.
-
         Inputs
         - X: the input matrix of shape (N, D)
-
         Returns
         - y: the output of the model
         - ff_dict: a dictionary with all the fully connected units and activations.
@@ -117,9 +110,7 @@ class TwoLayerNN:
         """
         Performs backpropagation over the two-layer neural network, and returns
         a dictionary of gradients of all model parameters.
-
         Question (c)
-
         Inputs:
          - X: the input matrix of shape (B, D), where B is the number of examples
               in a mini-batch, D is the feature dimensionality.
@@ -128,7 +119,6 @@ class TwoLayerNN:
               of classes.
          - ff_dict: the dictionary containing all the fully connected units and
               activations.
-
         Returns:
          - grads: a dictionary containing the gradients of corresponding weights and biases.
         """
@@ -147,9 +137,7 @@ class TwoLayerNN:
     def compute_loss(self, Y, Y_hat):
         """
         Computes cross entropy loss.
-
         Do NOT modify this function.
-
         Inputs
             Y:
             Y_hat:
@@ -162,9 +150,7 @@ class TwoLayerNN:
     def train(self, X, Y, X_val, Y_val, lr, n_epochs, batch_size, log_interval=1):
         """
         Runs mini-batch gradient descent.
-
         Do NOT Modify this method.
-
         Inputs
         - X
         - Y
@@ -192,9 +178,7 @@ class TwoLayerNN:
     def train_step(self, X_batch, Y_batch, batch_size, lr):
         """
         Updates the parameters using gradient descent.
-
         Do NOT Modify this method.
-
         Inputs
         - X_batch
         - Y_batch
@@ -213,13 +197,11 @@ class TwoLayerNN:
         Computes classification accuracy.
         
         Do NOT modify this function
-
         Inputs
         - Y: A numpy array of shape (N, C) containing the softmax outputs,
              where C is the number of classes.
         - Y_hat: A numpy array of shape (N, C) containing the one-hot encoded labels,
              where C is the number of classes.
-
         Returns
             accuracy: the classification accuracy in float
         """
@@ -263,8 +245,9 @@ def main(args):
     # model instantiation
     model = TwoLayerNN(input_dim=784, num_hiddens=256, num_classes=10)
 
-    # train the model
-    lr, n_epochs, batch_size = wandb.config.lr, wandb.config.n_epochs, wandb.config.batch_size
+    # train the model"
+    lr, n_epochs, batch_size = config["lr"], config["n_epochs"], config["batch_size"]
+    # lr, n_epochs, batch_size = wandb.config.lr, wandb.config.n_epochs, wandb.config.batch_size
     print("check hyper parameters")
     print("learning rate: ", lr)
     print("n_epochs: ", n_epochs)
@@ -299,7 +282,7 @@ def main(args):
 #         "accuracy/test_accuracy": test_acc
 #     })
     threshold = 0.8
-    if test_acc < threshold:
+    # if test_acc < threshold:
 #         wandb.alert(
 #             title="low test accuracy ",
 #             text=f"Accuracy {test_acc} is below the acceptable theshold {threshold}"
