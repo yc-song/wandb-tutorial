@@ -4,13 +4,41 @@
 import copy
 import numpy as np
 from mnist.data_utils import load_data
+from tqdm import tqdm
 import os
 import wandb
 import json
 import argparse
 import time
-
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
+import numpy
+import random
 # Utils
+
+class Net(nn.Module):
+
+    def __init__(self):
+        super(Net, self).__init__()
+        # 1 input image channel, 6 output channels, 5x5 square convolution
+        # kernel
+        # an affine operation: y = Wx + b
+        self.fc1 = nn.Linear(784, 256)  # 5*5 from image dimension
+        self.fc2 = nn.Linear(256, 10)
+        # self.init_weight()
+    def init_weight(self):
+        self.fc1.weight.data.fill_(0.1)
+        self.fc1.bias.data.fill_(0.1)
+        self.fc2.weight.data.fill_(0.1)
+        self.fc2.bias.data.fill_(0.1)
+
+    def forward(self, x):
+        # Max pooling over a (2, 2) window
+        x = nn.functional.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
 def sigmoid(z):
     """
     Do NOT modify this function
@@ -28,7 +56,7 @@ def softmax(X):
     return numer / denom
 
 
-def load_batch(X, Y, batch_size, shuffle=True):
+def load_batch(X, Y, batch_size, shuffle=False):
     """
     Generates batches with the remainder dropped.
     Do NOT modify this function
@@ -44,191 +72,59 @@ def load_batch(X, Y, batch_size, shuffle=True):
         Y_batch = Y[batch_size * step:batch_size * (step + 1)]
         step += 1
         yield X_batch, Y_batch
-
-
-# 2-Layer Network
-class TwoLayerNN:
-    """ a neural network with 2 layers """
-
-    def __init__(self, input_dim, num_hiddens, num_classes):
-        """
-        Do NOT modify this function.
-        """
-        self.input_dim = input_dim
-        self.num_hiddens = num_hiddens
-        self.num_classes = num_classes
-        self.params = self.initialize_parameters(input_dim, num_hiddens, num_classes)
-
-    def initialize_parameters(self, input_dim, num_hiddens, num_classes):
-        """
-        initializes parameters with Xavier Initialization.
-        Question (a)
-        - refer to https://paperswithcode.com/method/xavier-initialization for Xavier initialization 
-        
-        Inputs
-        - input_dim
-        - num_hiddens
-        - num_classes
-        Returns
-        - params: a dictionary with the initialized parameters.
-        """
-        params = {"W1": np.random.uniform(-1 / np.sqrt(input_dim), 1 / np.sqrt(input_dim), (input_dim, num_hiddens)),
-                  "W2": np.random.uniform(-1 / np.sqrt(num_hiddens), 1 / np.sqrt(num_hiddens),
-                                          (num_hiddens, num_classes)), "b1": np.zeros(num_hiddens),
-                  "b2": np.zeros(num_classes)}
-
-        return params
-
-    def forward(self, X):
-        """
-        Define and perform the feed forward step of a two-layer neural network.
-        Specifically, the network structue is given by
-          y = softmax(sigmoid(X W1 + b1) W2 + b2)
-        where X is the input matrix of shape (N, D), y is the class distribution matrix
-        of shape (N, C), N is the number of examples (either the entire dataset or
-        a mini-batch), D is the feature dimensionality, and C is the number of classes.
-        Question (b)
-        - ff_dict will be used to run backpropagation in backward method.
-        Inputs
-        - X: the input matrix of shape (N, D)
-        Returns
-        - y: the output of the model
-        - ff_dict: a dictionary with all the fully connected units and activations.
-        """
-        ff_dict = {}
-        ff_dict = self.params
-        ff_dict["h"] = sigmoid((np.matmul(X, ff_dict["W1"]) + ff_dict["b1"]))
-
-        ff_dict["minus h"] = 1 - sigmoid((np.matmul(X, ff_dict["W1"]) + ff_dict["b1"]))
-
-        y = softmax(np.matmul(ff_dict["h"], ff_dict["W2"]) + ff_dict["b2"])
-        ff_dict["y"] = y
-
-        return y, ff_dict
-
-    def backward(self, X, Y, ff_dict):
-        """
-        Performs backpropagation over the two-layer neural network, and returns
-        a dictionary of gradients of all model parameters.
-        Question (c)
-        Inputs:
-         - X: the input matrix of shape (B, D), where B is the number of examples
-              in a mini-batch, D is the feature dimensionality.
-         - Y: the matrix of one-hot encoded ground truth classes of shape (B, C),
-              where B is the number of examples in a mini-batch, C is the number
-              of classes.
-         - ff_dict: the dictionary containing all the fully connected units and
-              activations.
-        Returns:
-         - grads: a dictionary containing the gradients of corresponding weights and biases.
-        """
-
-        grads = {}
-        grads["h"] = np.matmul(ff_dict["y"] - Y, np.transpose(ff_dict["W2"]))
-        grads["dW2"] = np.matmul((np.transpose(ff_dict["h"])), ff_dict["y"] - Y)
-        grads["db1"] = grads["h"] * ff_dict["h"] * ff_dict["minus h"]
-        grads["db1"] = grads["db1"].sum(0)
-        grads["dW1"] = np.matmul(np.transpose(X), grads["h"] * ff_dict["h"] * ff_dict["minus h"])
-        grads["db2"] = (ff_dict["y"] - Y)
-        grads["db2"] = grads["db2"].sum(0)
-
-        return grads
-
-    def compute_loss(self, Y, Y_hat):
-        """
-        Computes cross entropy loss.
-        Do NOT modify this function.
-        Inputs
-            Y:
-            Y_hat:
-        Returns
-            loss:
-        """
-        loss = -(1 / Y.shape[0]) * np.sum(np.multiply(Y, np.log(Y_hat)))
-        return loss
-
-    def train(self, X, Y, X_val, Y_val, lr, n_epochs, batch_size, log_interval=1):
-        """
-        Runs mini-batch gradient descent.
-        Do NOT Modify this method.
-        Inputs
-        - X
-        - Y
-        - X_val
-        - Y_Val
-        - lr
-        - n_epochs
-        - batch_size
-        - log_interval
-        """
-
-        for X_batch, Y_batch in load_batch(X, Y, batch_size):
-            self.train_step(X_batch, Y_batch, batch_size, lr)
-            Y_hat, ff_dict = self.forward(X)
-            train_loss = self.compute_loss(Y, Y_hat)
-            train_acc = self.evaluate(Y, Y_hat)
-            Y_hat, ff_dict = self.forward(X_val)
-            valid_loss = self.compute_loss(Y_val, Y_hat)
-            valid_acc = self.evaluate(Y_val, Y_hat)
-
-            print('train loss/acc: {:.3f} {:.3f}, valid loss/acc: {:.3f} {:.3f}'. \
-                  format(train_loss, train_acc, valid_loss, valid_acc))
-            return train_loss, train_acc, valid_loss, valid_acc
-
-    def train_step(self, X_batch, Y_batch, batch_size, lr):
-        """
-        Updates the parameters using gradient descent.
-        Do NOT Modify this method.
-        Inputs
-        - X_batch
-        - Y_batch
-        - batch_size
-        - lr
-        """
-        _, ff_dict = self.forward(X_batch)
-        grads = self.backward(X_batch, Y_batch, ff_dict)
-        self.params["W1"] -= lr * grads["dW1"] / batch_size
-        self.params["b1"] -= lr * grads["db1"] / batch_size
-        self.params["W2"] -= lr * grads["dW2"] / batch_size
-        self.params["b2"] -= lr * grads["db2"] / batch_size
-
-    def evaluate(self, Y, Y_hat):
-        """
-        Computes classification accuracy.
-        
-        Do NOT modify this function
-        Inputs
-        - Y: A numpy array of shape (N, C) containing the softmax outputs,
-             where C is the number of classes.
-        - Y_hat: A numpy array of shape (N, C) containing the one-hot encoded labels,
-             where C is the number of classes.
-        Returns
-            accuracy: the classification accuracy in float
-        """
-        classes_pred = np.argmax(Y_hat, axis=1)
-        classes_gt = np.argmax(Y, axis=1)
-        accuracy = float(np.sum(classes_pred == classes_gt)) / Y.shape[0]
-        return accuracy
-
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    numpy.random.seed(worker_seed)
+    random.seed(worker_seed)
 
 # Load MNIST
 def main(args):
+    random.seed(133)
+    np.random.seed(133)
+    torch.manual_seed(133)
     # load json config file
     config = args
-#     if config["resume"]:
-#         run = wandb.init(project="wandb-tutorial", config=config, resume="must", id=config["run_id"])
-#     else:
-#         run = wandb.init(project="wandb-tutorial", config=config, notes="Hello, wandb!", tags=["tutorial"])
-#         model_output_path = "./training_params/"+run.id
-#         if not os.path.exists(model_output_path):
-#             os.makedirs(model_output_path)
-#         with open(os.path.join(model_output_path, "training_params.json"), 'w') as outfile:
-#             json.dump(config, outfile)
-
-#     print(run.id)
-    print("config:", config)
+    # model instantiation
+    model = Net()
+    model.zero_grad()
+    epoch_idx_global = 0
+    accumulated_step = 0
+    previous_step = 0
+    train_loss = 0
+    nested_break = False
+    time_limit = config["time_limit"] # minutes
+    lr, n_epochs, batch_size = config["lr"], config["n_epochs"], config["batch_size"]
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.99999999)
+    # wandb instantiation
+    if config["resume"]:
+        folder_path=config["load_dir"]+"/"+config["run_id"]
+        each_file_path_and_gen_time = []
+        ## Getting newest file
+        for each_file_name in os.listdir(folder_path):
+            each_file_path = folder_path +"/"+ each_file_name
+            if os.path.isfile(each_file_path):
+                each_file_gen_time = os.path.getctime(each_file_path)
+                each_file_path_and_gen_time.append(
+                    (each_file_path, each_file_gen_time)
+                )
+        most_recent_file = max(each_file_path_and_gen_time, key=lambda x: x[1])[0]
+        print("file loaded:", most_recent_file)
+        run = wandb.init(project="wandb-tutorial", config=config, resume="must", id=config["run_id"])
+        checkpoint = torch.load(most_recent_file)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        epoch_idx_global = checkpoint['epoch']
+        previous_step = checkpoint['step']
+        accumulated_step = checkpoint['accumulated_step']
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    else:
+        run = wandb.init(project="wandb-tutorial", config=config, notes="Hello, wandb!", tags=["tutorial"])
+    model_output_path = config["save_dir"]+"/"+run.id
+    if not os.path.exists(model_output_path):
+        os.makedirs(model_output_path)
+    with open(os.path.join(model_output_path, "training_params.json"), 'w') as outfile:
+        json.dump(config, outfile)
     start_time = time.time()
-    time_limit = 0.1 # minutes
     # load and shuffle data
     x_train, y_train, x_test, y_test = load_data()
     idxs = np.arange(len(x_train))
@@ -236,57 +132,115 @@ def main(args):
     split_idx = int(np.ceil(len(idxs) * 0.8))
     x_valid, y_valid = x_train[idxs[split_idx:]], y_train[idxs[split_idx:]]
     x_train, y_train = x_train[idxs[:split_idx]], y_train[idxs[:split_idx]]
+ 
+    x_train = torch.tensor(x_train)
+    y_train = torch.tensor(y_train)
+    x_valid = torch.tensor(x_valid)
+    y_valid = torch.tensor(y_valid)
+    train_tensor_data = TensorDataset(x_train, y_train)
+    valid_tensor_data = TensorDataset(x_valid, y_valid)
+    train_sampler = RandomSampler(train_tensor_data)
+    train_dataloader = DataLoader(
+        train_tensor_data, 
+        num_workers=3,
+        worker_init_fn=seed_worker,
+        batch_size = config["batch_size"]
+        )
+    valid_sampler = RandomSampler(valid_tensor_data)
+    valid_dataloader = DataLoader(
+        valid_tensor_data, 
+        num_workers=3,
+        worker_init_fn=seed_worker,
+        batch_size = config["batch_size"]
+
+        )
     print('Set validation data aside')
     print('Training data shape: ', x_train.shape)
     print('Training labels shape: ', y_train.shape)
     print('Validation data shape: ', x_valid.shape)
     print('Validation labels shape: ', y_valid.shape)
 
-    # model instantiation
-    model = TwoLayerNN(input_dim=784, num_hiddens=256, num_classes=10)
-
     # train the model"
-    lr, n_epochs, batch_size = config["lr"], config["n_epochs"], config["batch_size"]
+
     # lr, n_epochs, batch_size = wandb.config.lr, wandb.config.n_epochs, wandb.config.batch_size
     print("check hyper parameters")
     print("learning rate: ", lr)
     print("n_epochs: ", n_epochs)
     print("batch size: ", batch_size)
+    criterion = nn.CrossEntropyLoss()
+    for epoch in tqdm(range(epoch_idx_global, n_epochs)):
+        step = 0
+        train_loss = 0
 
-    for epoch in range(n_epochs):
-#         execution_time = (time.time() - start_time) / 60
-#         print("execution time:", execution_time)
-#         if execution_time > time_limit:
-#             print('timeout')
-#             break
-#         if config["raise_error"] and epoch == 10:
-#             raise Exception("unknown error")
-        train_loss, train_acc, valid_loss, valid_acc = model.train(x_train, y_train, x_valid, y_valid, lr, n_epochs,
-                                                                   batch_size)
+        print("epoch:", epoch)
+        execution_time = (time.time() - start_time) / 60
+
+        print("execution time:", execution_time)
+        if config["raise_error"] and epoch == 10:
+            raise Exception("unknown error")
+        for step, batch in enumerate(train_dataloader):
+            step+=1
+            execution_time = (time.time() - start_time) / 60
+            if execution_time > time_limit:
+                nested_break = True
+                print('timeout')
+                break
+            if epoch <= epoch_idx_global and step <= previous_step:
+              continue
+            X_batch = batch[0]
+            Y_batch = batch[1]
+            optimizer.zero_grad()
+            y_hat = model(X_batch)
+            _, Y_batch = Y_batch.max(dim=1)
+            train_loss = criterion(y_hat, Y_batch)
+            train_loss.backward()
+            optimizer.step()
+            scheduler.step()
+            accumulated_step += 1
+            if not step % config["save_interval"]:
+                print("***** Saving fine - tuned model at {} *****".format(step))
+                epoch_output_folder_path = os.path.join(
+                model_output_path, "epoch_{}_{}".format(epoch, step)
+            )
+                torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'step': step,
+                'accumulated_step': accumulated_step
+                }, epoch_output_folder_path)
+        if nested_break == True:
+            break
+
+        # model.eval()
+        # for step, batch in enumerate(valid_dataloader):
+        #     X_batch = batch[0]
+        #     Y_batch = batch[1]
+        #     optimizer.zero_grad()
+        #     y_hat = model(X_batch)
+        #     _, Y_batch = Y_batch.max(dim=1)
+        #     valid_loss = criterion(y_hat, Y_batch)
+        # model.train()
+        print("***** Saving fine - tuned model *****")
+        epoch_output_folder_path = os.path.join(
+        model_output_path, "epochs/epoch_{}".format(epoch)
+    )
+        torch.save({
+        'epoch': epoch,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'step': step,
+        }, epoch_output_folder_path)
         # log metric
-#         wandb.log({
-#             "loss/train_loss": train_loss,
-#             "loss/valid_loss": valid_loss,
-#             "accuracy/train_accuracy": train_acc,
-#             "accuracy/valid_accuracy": valid_acc,
-#             "params/epoch": epoch
-#         })
+        wandb.log({
+            "loss/train_loss": train_loss,
+            # "loss/valid_loss": valid_loss,
+            "params/epoch": epoch,
+            "params/learning_rate":  optimizer.param_groups[0]['lr']
+        })
+        # print("Train_loss: {}, Valid loss: {}".format(train_loss, valid_loss))
 
-    # evalute the model on test data
-    Y_hat, _ = model.forward(x_test)
-    test_loss = model.compute_loss(y_test, Y_hat)
-    test_acc = model.evaluate(y_test, Y_hat)
-    print("Final test loss = {:.3f}, acc = {:.3f}".format(test_loss, test_acc))
-#     wandb.log({
-#         "loss/test_loss": test_loss,
-#         "accuracy/test_accuracy": test_acc
-#     })
-    threshold = 0.8
-    # if test_acc < threshold:
-#         wandb.alert(
-#             title="low test accuracy ",
-#             text=f"Accuracy {test_acc} is below the acceptable theshold {threshold}"
-#         )
+
 
 
 
@@ -294,12 +248,15 @@ if __name__ == "__main__":
     with open('./config.json') as f:
         config = json.load(f)
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--resume", default = config["resume"], action = "store_true", help = "whether to resume")
-    parser.add_argument("--run_id", default = config["run_id"], help = "run id to resume")
-    parser.add_argument("--lr", type = float, default = config["lr"], help = "learning rate")
-    parser.add_argument("--batch_size", type = int, default = config["batch_size"], help = "batch size")
-    parser.add_argument("--raise_error", default = config["raise_error"], help = "batch size")
-    parser.add_argument("--n_epochs", type = int, default = config["n_epochs"], help = "batch size")
-
+    parser.add_argument("--resume", action = "store_true", help = "whether to resume")
+    parser.add_argument("--run_id", type = str, help = "run id to resume")
+    parser.add_argument("--lr", type = float, default =  0.01, help = "learning rate")
+    parser.add_argument("--batch_size", type = int, default = 32, help = "batch size")
+    parser.add_argument("--raise_error", action = "store_true", help = "raise error or not")
+    parser.add_argument("--n_epochs", type = int, default = 10, help = "epochs")
+    parser.add_argument("--save_interval", type = int, default = 100, help = "save interval")
+    parser.add_argument("--save_dir", type = str, default = "./save", help = "save directory")
+    parser.add_argument("--load_dir", type = str, default = "./save", help = "load directory")
+    parser.add_argument("--time_limit", type = float, default = 1, help = "time limit in minutes")
     args = vars(parser.parse_args())
     main(args)
