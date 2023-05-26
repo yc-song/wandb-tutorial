@@ -94,7 +94,26 @@ def main(args):
     nested_break = False
     time_limit = config["time_limit"] # minutes
     lr, n_epochs, batch_size = config["lr"], config["n_epochs"], config["batch_size"]
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+    weight_params = []
+    weight_params_names = []
+    bias_params = []
+    bias_params_names =[]
+    for n, p in model.named_parameters():
+        if "weight" in n:
+            weight_params.append(p)
+            weight_params_names.append(n)
+        if "bias" in n:
+            bias_params.append(p)
+            bias_params_names.append(n)
+    print("weight:", weight_params_names)
+    print("bias:", bias_params_names)
+    update_params = [
+        {'params': weight_params, "weight_decay": 0.01, "learning_rate": 0.1},
+        {'params': bias_params, "weight_decay": 0, "learning_rate": 0.01}
+    ]
+    optimizer = torch.optim.SGD(weight_params)
+    print(optimizer)
+    optimizer_bias = torch.optim.SGD(bias_params)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.99999999)
     # wandb instantiation
     if config["resume"]:
@@ -189,13 +208,21 @@ def main(args):
               continue
             X_batch = batch[0]
             Y_batch = batch[1]
-            optimizer.zero_grad()
             y_hat = model(X_batch)
             _, Y_batch = Y_batch.max(dim=1)
             train_loss = criterion(y_hat, Y_batch)
             train_loss.backward()
             optimizer.step()
+            optimizer_bias.step()
+            for n, p in model.named_parameters():
+                print(n, p.grad)
+            print("***")
             scheduler.step()
+            optimizer.zero_grad()
+            optimizer_bias.zero_grad()
+            for n, p in model.named_parameters():
+                print(n, p.grad)
+            raise("error")
             accumulated_step += 1
             if not step % config["save_interval"]:
                 print("***** Saving fine - tuned model at {} *****".format(step))
