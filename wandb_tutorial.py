@@ -110,7 +110,7 @@ def main(args):
                 )
         most_recent_file = max(each_file_path_and_gen_time, key=lambda x: x[1])[0]
         print("file loaded:", most_recent_file)
-        run = wandb.init(project="wandb-tutorial", config=config, resume="must", id=config["run_id"])
+        run = wandb.init(project="wandb-tutorial", config=config, resume="must", id=config["run_id"], entity="skiml-test")
         checkpoint = torch.load(most_recent_file)
         model.load_state_dict(checkpoint['model_state_dict'])
         epoch_idx_global = checkpoint['epoch']
@@ -118,7 +118,7 @@ def main(args):
         accumulated_step = checkpoint['accumulated_step']
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     else:
-        run = wandb.init(project="wandb-tutorial", config=config, notes="Hello, wandb!", tags=["tutorial"])
+        run = wandb.init(project="wandb-tutorial", config=config, notes="Hello, wandb!", tags=["tutorial"], entity="skiml-test")
     model_output_path = config["save_dir"]+"/"+run.id
     if not os.path.exists(model_output_path):
         os.makedirs(model_output_path)
