@@ -79,9 +79,12 @@ def seed_worker(worker_id):
 
 # Load MNIST
 def main(args):
-    random.seed(133)
-    np.random.seed(133)
-    torch.manual_seed(133)
+    ### YOUR CODE HERE (3 lines)
+    ### TODO:
+    # Set random seed for python, numpy and torch (random seed = 133)
+    
+
+
     # load json config file
     config = args
     # model instantiation
@@ -97,28 +100,18 @@ def main(args):
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.99999999)
     # wandb instantiation
-    if config["resume"]:
-        folder_path=config["load_dir"]+"/"+config["run_id"]
-        each_file_path_and_gen_time = []
-        ## Getting newest file
-        for each_file_name in os.listdir(folder_path):
-            each_file_path = folder_path +"/"+ each_file_name
-            if os.path.isfile(each_file_path):
-                each_file_gen_time = os.path.getctime(each_file_path)
-                each_file_path_and_gen_time.append(
-                    (each_file_path, each_file_gen_time)
-                )
-        most_recent_file = max(each_file_path_and_gen_time, key=lambda x: x[1])[0]
-        print("file loaded:", most_recent_file)
-        run = wandb.init(project="wandb-tutorial", config=config, resume="must", id=config["run_id"], entity="skiml-test")
-        checkpoint = torch.load(most_recent_file)
-        model.load_state_dict(checkpoint['model_state_dict'])
-        epoch_idx_global = checkpoint['epoch']
-        previous_step = checkpoint['step']
-        accumulated_step = checkpoint['accumulated_step']
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    else:
-        run = wandb.init(project="wandb-tutorial", config=config, notes="Hello, wandb!", tags=["tutorial"], entity="skiml-test")
+    ### YOUR CODE HERE (1 line)
+    ### TODO:
+    # sign in to wandb and activate on your shell
+    # initialize wandb with following arguments:
+    ## project: wandb-tutorial
+    ## config: variable 'config' declared above
+    ## notes: "Hello, wandb!"
+    ## tags: ["tutorial"] 
+    # wandb.init: https://docs.wandb.ai/ref/python/init
+
+
+    # End your code
     model_output_path = config["save_dir"]+"/"+run.id
     if not os.path.exists(model_output_path):
         os.makedirs(model_output_path)
@@ -162,7 +155,6 @@ def main(args):
 
     # train the model"
 
-    # lr, n_epochs, batch_size = wandb.config.lr, wandb.config.n_epochs, wandb.config.batch_size
     print("check hyper parameters")
     print("learning rate: ", lr)
     print("n_epochs: ", n_epochs)
@@ -199,28 +191,21 @@ def main(args):
             accumulated_step += 1
             if not step % config["save_interval"]:
                 print("***** Saving fine - tuned model at {} *****".format(step))
-                epoch_output_folder_path = os.path.join(
-                model_output_path, "epoch_{}_{}".format(epoch, step)
-            )
-                torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'step': step,
-                'accumulated_step': accumulated_step
-                }, epoch_output_folder_path)
+                ### YOUR CODE HERE (3~7 lines)
+                ### TODO:
+                # Save your model
+                # ToDo:
+                # save your model to the path model_output_path/epoch_{epoch}_{step}. model_output_path is defined beforehand.
+                # e.g. for the model at step 10 of epoch 1, your model is supposed to be saved in the directory './save/[run_id]/epoch_1_10'
+                # use 'torch.save' to save your checkpoint. checkpoint file should include epoch, model.state_dict(), optimizer.state_dict(), step, and accumulated_step.
+                # Do not delete this file. It will be used for the second assignment
+                # torch save: https://pytorch.org/docs/stable/generated/torch.save.html
+
+
+                # End your code
         if nested_break == True:
             break
 
-        # model.eval()
-        # for step, batch in enumerate(valid_dataloader):
-        #     X_batch = batch[0]
-        #     Y_batch = batch[1]
-        #     optimizer.zero_grad()
-        #     y_hat = model(X_batch)
-        #     _, Y_batch = Y_batch.max(dim=1)
-        #     valid_loss = criterion(y_hat, Y_batch)
-        # model.train()
         print("***** Saving fine - tuned model *****")
         epoch_output_folder_path = os.path.join(
         model_output_path, "epochs/epoch_{}".format(epoch)
@@ -231,7 +216,13 @@ def main(args):
         'optimizer_state_dict': optimizer.state_dict(),
         'step': step,
         }, epoch_output_folder_path)
-        # log metric
+        # track metric in wandb
+        ### YOUR CODE HERE (3~7 lines)
+        ### TODO:
+        # keep track of train_loss, epoch, and learning rate
+        # wandb.log: https://docs.wandb.ai/ref/python/init
+        # How to get current lr of optimizer with adaptive lr?: https://discuss.pytorch.org/t/get-current-lr-of-optimizer-with-adaptive-lr/24851/2
+
         wandb.log({
             "loss/train_loss": train_loss,
             # "loss/valid_loss": valid_loss,
