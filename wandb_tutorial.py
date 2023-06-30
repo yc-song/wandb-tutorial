@@ -217,19 +217,13 @@ def main(args):
         'step': step,
         }, epoch_output_folder_path)
         # track metric in wandb
-        ### YOUR CODE HERE (3~7 lines)
+        ### YOUR CODE HERE (~3 lines)
         ### TODO:
         # keep track of train_loss, epoch, and learning rate
         # wandb.log: https://docs.wandb.ai/ref/python/init
         # How to get current lr of optimizer with adaptive lr?: https://discuss.pytorch.org/t/get-current-lr-of-optimizer-with-adaptive-lr/24851/2
 
-        wandb.log({
-            "loss/train_loss": train_loss,
-            # "loss/valid_loss": valid_loss,
-            "params/epoch": epoch,
-            "params/learning_rate":  optimizer.param_groups[0]['lr']
-        })
-        # print("Train_loss: {}, Valid loss: {}".format(train_loss, valid_loss))
+        # end your code
 
 
 
