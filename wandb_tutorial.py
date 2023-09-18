@@ -122,6 +122,8 @@ def main(args):
     model_output_path = config["save_dir"]+"/"+run.id
     if not os.path.exists(model_output_path):
         os.makedirs(model_output_path)
+        os.makedirs(os.path.join(model_output_path, "epochs"))
+        
     with open(os.path.join(model_output_path, "training_params.json"), 'w') as outfile:
         json.dump(config, outfile)
     start_time = time.time()
@@ -189,13 +191,13 @@ def main(args):
               continue
             X_batch = batch[0]
             Y_batch = batch[1]
-            optimizer.zero_grad()
             y_hat = model(X_batch)
             _, Y_batch = Y_batch.max(dim=1)
             train_loss = criterion(y_hat, Y_batch)
             train_loss.backward()
             optimizer.step()
             scheduler.step()
+            optimizer.zero_grad()
             accumulated_step += 1
             if not step % config["save_interval"]:
                 print("***** Saving fine - tuned model at {} *****".format(step))
